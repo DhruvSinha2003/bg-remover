@@ -3,7 +3,49 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>BG Remover</title>
+    <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body></body>
+  <body>
+    <div class="container">
+      <h1>BG Remover</h1>
+      <form action="/" id = "uploadForm" method="post">
+        <input id="fileInput" type="file" accept="image/*" />
+        <input type="submit" value="rm">
+      </form>
+
+      <script>
+      let dropZone = document.getElementById("container");
+      let fileInput = document.getElementById("fileInput");
+      let uploadForm = document.getElementById("uploadForm");
+
+      dropZone.addEventListener("click", function () {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener("change", function () {
+        if (fileInput.files.length > 0) {
+          uploadForm.submit();
+        }
+      });
+
+      dropZone.addEventListener("dragover", function (e) {
+        this.classList.add("dragover");
+      });
+
+      dropZone.addEventListener("dragleave", function (e) {
+        this.classList.remove("dragover");
+      });
+
+      dropZone.addEventListener("drop", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.classList.remove("dragover");
+
+        let file = e.dataTransfer.files[0];
+        fileInput.files = e.dataTransfer.files;
+        uploadForm.submit();
+      });
+      </script>
+  </body>
 </html>
