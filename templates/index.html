@@ -2,6 +2,10 @@
 <html>
   <head>
     <title>🔲 BG Remover</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✂️</text></svg>"
+    />
     <style>
       body {
         height: 100vh;
@@ -26,6 +30,7 @@
         justify-content: center;
         cursor: pointer;
         transition: all 0.3s ease;
+        position: relative;
       }
 
       .drop-zone.dragover {
@@ -36,29 +41,89 @@
       h1 {
         font-size: 2.5rem;
         margin-bottom: 1.5rem;
-      }
-
-      input[type="submit"] {
-        margin-top: 1rem;
-        padding: 8px 16px;
-        background-color: #333;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-
-      input[type="submit"]:hover {
-        background-color: #444;
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
 
       input[type="file"] {
         display: none;
       }
+
+      .error-message {
+        color: #ff6b6b;
+        margin-top: 10px;
+        font-size: 0.9rem;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+      }
+
+      .error-message.visible {
+        opacity: 1;
+      }
+
+      .file-info {
+        margin-top: 10px;
+        font-size: 0.9rem;
+        color: #aaa;
+      }
+
+      .loading {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        z-index: 10;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+
+      .loading.active {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      .spinner {
+        border: 4px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        border-top: 4px solid #fff;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin-bottom: 15px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .instructions {
+        margin-top: 20px;
+        color: #aaa;
+        max-width: 400px;
+        line-height: 1.5;
+      }
     </style>
   </head>
   <body>
     <div id="dropZone" class="drop-zone">
+      <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Removing background...</p>
+      </div>
+
       <h1>BG Remover</h1>
       <form
         id="uploadForm"
@@ -67,43 +132,124 @@
         enctype="multipart/form-data"
       >
         <input id="fileInput" type="file" name="file" accept="image/*" />
-        <input type="submit" value="Remove Background" />
       </form>
       <p>Click or drag an image here</p>
+      <p id="fileInfo" class="file-info"></p>
+      <p id="errorMessage" class="error-message">Please select a valid image</p>
+
+      <div class="instructions">
+        <p>Supported formats: JPG, PNG, WEBP.</p>
+      </div>
     </div>
 
     <script>
       let dropZone = document.getElementById("dropZone");
       let fileInput = document.getElementById("fileInput");
       let uploadForm = document.getElementById("uploadForm");
+      let errorMessage = document.getElementById("errorMessage");
+      let fileInfo = document.getElementById("fileInfo");
+      let loading = document.getElementById("loading");
 
-      dropZone.addEventListener("click", function () {
+      // Check if the file is an image
+      function isValidImageFile(file) {
+        const validTypes = [
+          "image/jpeg",
+          "image/png",
+          "image/gif",
+          "image/webp",
+          "image/bmp",
+        ];
+        return file && validTypes.includes(file.type);
+      }
+
+      // Format file size
+      function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + " bytes";
+        else if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
+        else return (bytes / 1048576).toFixed(1) + " MB";
+      }
+
+      // Show error message
+      function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.classList.add("visible");
+        setTimeout(() => {
+          errorMessage.classList.remove("visible");
+        }, 3000);
+      }
+
+      // Process file and start background removal
+      function processFile(file) {
+        if (file) {
+          if (isValidImageFile(file)) {
+            fileInfo.textContent = `Processing: ${file.name} (${formatFileSize(
+              file.size
+            )})`;
+            // Show loading state
+            loading.classList.add("active");
+            // Submit the form to start background removal
+            uploadForm.submit();
+            return true;
+          } else {
+            fileInfo.textContent = "";
+            showError(
+              "Please select a valid image file (JPG, PNG, GIF, WEBP, BMP)"
+            );
+            return false;
+          }
+        } else {
+          fileInfo.textContent = "";
+          return false;
+        }
+      }
+
+      // Click on drop zone to select file
+      dropZone.addEventListener("click", function (e) {
+        // Prevent click propagation if clicking on form elements
+        if (e.target !== dropZone && e.target !== dropZone.querySelector("p")) {
+          return;
+        }
         fileInput.click();
       });
 
+      // File input change - automatically process when file selected
       fileInput.addEventListener("change", function () {
         if (fileInput.files.length > 0) {
-          uploadForm.submit();
+          processFile(fileInput.files[0]);
         }
       });
 
+      // Drag over
       dropZone.addEventListener("dragover", function (e) {
         e.preventDefault();
         this.classList.add("dragover");
       });
 
+      // Drag leave
       dropZone.addEventListener("dragleave", function (e) {
         this.classList.remove("dragover");
       });
 
+      // Drop file - automatically process when file dropped
       dropZone.addEventListener("drop", function (e) {
         e.preventDefault();
         e.stopPropagation();
         this.classList.remove("dragover");
 
-        let file = e.dataTransfer.files[0];
-        fileInput.files = e.dataTransfer.files;
-        uploadForm.submit();
+        if (e.dataTransfer.files.length) {
+          const file = e.dataTransfer.files[0];
+          fileInput.files = e.dataTransfer.files;
+          processFile(file);
+        }
+      });
+
+      // Prevent the default browser behavior for file drops outside the drop zone
+      window.addEventListener("dragover", function (e) {
+        e.preventDefault();
+      });
+
+      window.addEventListener("drop", function (e) {
+        e.preventDefault();
       });
     </script>
   </body>
